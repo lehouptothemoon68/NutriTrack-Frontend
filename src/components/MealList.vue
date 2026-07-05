@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {ref, onMounted, computed, watch} from "vue";
+import {ref, computed, watch} from "vue";
 import type {Macronutrient, MealEntry} from "@/types/meal";
 import {getAllMeals, createMeal, deleteMeal, updateMeal} from "@/services/mealService";
 import {useAuth0} from "@auth0/auth0-vue";
@@ -7,24 +7,16 @@ import {useAuth0} from "@auth0/auth0-vue";
 const meals = ref<MealEntry[]>([])
 const isLoading = ref(true)
 const errorMessage = ref<string | null>(null)
-const showOnlyFavorites= ref(false)
 const { user } = useAuth0()
 
-const newName= ref("")
+// Form-State
+const newName = ref("")
 const newCarbs = ref(0)
 const newFat = ref(0)
 const newProteins = ref(0)
-const editingMealId = ref<number | null>(null)
-const searchText = ref("")
-const dailyGoal = ref(2000)
 
-const filteredMeals = computed(() =>
-  meals.value.filter(meal => {
-    const matchesSearch = meal.name.toLowerCase().includes(searchText.value.toLowerCase())
-    const matchesFavorite = !showOnlyFavorites.value || meal.favorite
-    return matchesSearch && matchesFavorite
-  })
-)
+// Tagesübersicht
+const dailyGoal = ref(2000)
 
 const totalCalories = computed(() =>
   meals.value.reduce((sum, meal) => sum + calculateCalories(meal.macro), 0)
@@ -44,7 +36,7 @@ async function loadMeals(){
   } catch (error) {
     errorMessage.value = "Error while loading meals."
     console.error(error)
-  }finally {
+  } finally {
     isLoading.value = false
   }
 }
@@ -60,14 +52,13 @@ async function submitForm() {
         countProteins: newProteins.value
       }
     }
-    if (editingMealId.value !== null) {
-      await updateMeal(editingMealId.value, mealData, user.value?.email)
-    } else {
-      await createMeal(mealData, user.value?.email)
-    }
-    resetForm()
+    await createMeal(mealData, user.value?.email)
+    newName.value = ""
+    newCarbs.value = 0
+    newFat.value = 0
+    newProteins.value = 0
     await loadMeals()
-  }catch (error) {
+  } catch (error) {
     errorMessage.value = "Fehler beim Speichern."
     console.error(error)
   }
@@ -83,22 +74,6 @@ async function onDelete(meal: MealEntry){
     errorMessage.value = "Fehler beim Löschen."
     console.error(error)
   }
-}
-
-async function onEdit(meal: MealEntry){
-  editingMealId.value = meal.id ?? null
-  newName.value = meal.name
-  newFat.value = meal.macro.countFat
-  newCarbs.value = meal.macro.countCarbs
-  newProteins.value = meal.macro.countProteins
-}
-
-function resetForm(){
-  editingMealId.value = null
-  newName.value = ""
-  newCarbs.value = 0
-  newFat.value = 0
-  newProteins.value = 0
 }
 
 async function onToggleFavorite(meal: MealEntry){
@@ -128,7 +103,7 @@ watch(user, () => {
     <h2 class="mb-4">🥗 Meine Mahlzeiten</h2>
 
     <form @submit.prevent="submitForm" class="mb-4 p-3 border rounded bg-light">
-      <h3 class="mb-3">{{ editingMealId !== null ? "Mahlzeit bearbeiten" : "Neue Mahlzeit hinzufügen" }}</h3>
+      <h3 class="mb-3">Neue Mahlzeit hinzufügen</h3>
       <div class="mb-2">
         <input v-model="newName" placeholder="Name der Mahlzeit" required class="form-control" />
       </div>
@@ -141,33 +116,19 @@ watch(user, () => {
       <div class="mb-2">
         <input v-model.number="newProteins" type="number" placeholder="Proteine (g)" class="form-control" />
       </div>
-      <button type="submit" class="btn btn-primary me-2">
-        {{ editingMealId !== null ? "Aktualisieren" : "Speichern" }}
-      </button>
-      <button v-if="editingMealId !== null" type="button" @click="resetForm" class="btn btn-secondary">
-        Abbrechen
-      </button>
+      <button type="submit" class="btn btn-primary">Speichern</button>
     </form>
-
-    <div class="mb-3 d-flex gap-3 align-items-center">
-      <input v-model="searchText" placeholder="Mahlzeit suchen..." class="form-control w-auto" />
-      <label class="d-flex align-items-center gap-2">
-        <input type="checkbox" v-model="showOnlyFavorites" />
-        Nur Favoriten anzeigen
-      </label>
-    </div>
 
     <p v-if="isLoading">Lade Mahlzeiten...</p>
     <p v-else-if="errorMessage" class="text-danger">{{ errorMessage }}</p>
     <ul v-else class="list-group mb-4">
-      <li v-for="meal in filteredMeals" :key="meal.id ?? meal.name" class="list-group-item">
+      <li v-for="meal in meals" :key="meal.id ?? meal.name" class="list-group-item">
         <h5>{{ meal.name }}</h5>
         <p class="mb-1">Kohlenhydrate: {{ meal.macro.countCarbs }} g</p>
         <p class="mb-1">Fette: {{ meal.macro.countFat }} g</p>
         <p class="mb-1">Proteine: {{ meal.macro.countProteins }} g</p>
         <p class="mb-2"><strong>Kalorien: {{ calculateCalories(meal.macro) }} kcal</strong></p>
         <button @click="onDelete(meal)" class="btn btn-danger btn-sm me-2">Löschen</button>
-        <button @click="onEdit(meal)" class="btn btn-warning btn-sm me-2">Bearbeiten</button>
         <button @click="onToggleFavorite(meal)" class="btn btn-outline-warning btn-sm">
           {{ meal.favorite ? "⭐ Favorit" : "☆ Favorit" }}
         </button>
