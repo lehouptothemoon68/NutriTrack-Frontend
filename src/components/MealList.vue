@@ -18,6 +18,26 @@ const newProteins = ref(0)
 // Tagesübersicht
 const dailyGoal = ref(2000)
 
+// Validierung
+const validationError = ref<string | null>(null)
+
+function validateForm(): boolean {
+  if (!newName.value.trim()) {
+    validationError.value = "Name darf nicht leer sein."
+    return false
+  }
+  if (newCarbs.value < 0 || newFat.value < 0 || newProteins.value < 0) {
+    validationError.value = "Makronährstoffe dürfen nicht negativ sein."
+    return false
+  }
+  if (newCarbs.value > 1000 || newFat.value > 1000 || newProteins.value > 1000) {
+    validationError.value = "Makronährstoffe dürfen nicht über 1000g sein."
+    return false
+  }
+  validationError.value = null
+  return true
+}
+
 const totalCalories = computed(() =>
   meals.value.reduce((sum, meal) => sum + calculateCalories(meal.macro), 0)
 )
@@ -42,7 +62,7 @@ async function loadMeals(){
 }
 
 async function submitForm() {
-  if (!newName.value) return
+  if (!validateForm()) return
   try {
     const mealData = {
       name: newName.value,
@@ -108,16 +128,18 @@ watch(user, () => {
         <input v-model="newName" placeholder="Name der Mahlzeit" required class="form-control" />
       </div>
       <div class="mb-2">
-        <input v-model.number="newCarbs" type="number" placeholder="Kohlenhydrate (g)" class="form-control" />
+        <input v-model.number="newCarbs" type="number" min="0" max="1000" placeholder="Kohlenhydrate (g)" class="form-control" />
       </div>
       <div class="mb-2">
-        <input v-model.number="newFat" type="number" placeholder="Fett (g)" class="form-control" />
+        <input v-model.number="newFat" type="number" min="0" max="1000" placeholder="Fett (g)" class="form-control" />
       </div>
       <div class="mb-2">
-        <input v-model.number="newProteins" type="number" placeholder="Proteine (g)" class="form-control" />
+        <input v-model.number="newProteins" type="number" min="0" max="1000" placeholder="Proteine (g)" class="form-control" />
       </div>
       <button type="submit" class="btn btn-primary">Speichern</button>
     </form>
+
+    <p v-if="validationError" class="text-danger mt-2">⚠️ {{ validationError }}</p>
 
     <p v-if="isLoading">Lade Mahlzeiten...</p>
     <p v-else-if="errorMessage" class="text-danger">{{ errorMessage }}</p>
@@ -146,7 +168,7 @@ watch(user, () => {
     <div class="p-3 border rounded bg-light">
       <h3 class="mb-3">🎯 Tagesziel</h3>
       <div class="mb-2">
-        <input v-model.number="dailyGoal" type="number" placeholder="Tagesziel in kcal" class="form-control w-auto" />
+        <input v-model.number="dailyGoal" type="number" min="0" placeholder="Tagesziel in kcal" class="form-control w-auto" />
       </div>
       <p v-if="totalCalories <= dailyGoal" class="text-success">
         ✅ Noch {{ dailyGoal - totalCalories }} kcal übrig
