@@ -9,13 +9,15 @@ const isLoading = ref(true)
 const errorMessage = ref<string | null>(null)
 const showOnlyFavorites= ref(false)
 const { user } = useAuth0()
-// Form-State
+
 const newName= ref("")
 const newCarbs = ref(0)
 const newFat = ref(0)
 const newProteins = ref(0)
 const editingMealId = ref<number | null>(null)
 const searchText = ref("")
+const dailyGoal = ref(2000)
+
 const filteredMeals = computed(() =>
   meals.value.filter(meal => {
     const matchesSearch = meal.name.toLowerCase().includes(searchText.value.toLowerCase())
@@ -23,6 +25,16 @@ const filteredMeals = computed(() =>
     return matchesSearch && matchesFavorite
   })
 )
+
+const totalCalories = computed(() =>
+  meals.value.reduce((sum, meal) => sum + calculateCalories(meal.macro), 0)
+)
+
+const totalMacros = computed(() => ({
+  countCarbs: meals.value.reduce((sum, m) => sum + m.macro.countCarbs, 0),
+  countFat: meals.value.reduce((sum, m) => sum + m.macro.countFat, 0),
+  countProteins: meals.value.reduce((sum, m) => sum + m.macro.countProteins, 0)
+}))
 
 async function loadMeals(){
   if (!user.value?.email) return
@@ -99,6 +111,7 @@ async function onToggleFavorite(meal: MealEntry){
     console.error(error)
   }
 }
+
 function calculateCalories(macro: Macronutrient): number{
   return macro.countFat * 9 + macro.countProteins * 4 + macro.countCarbs * 4
 }
@@ -111,54 +124,81 @@ watch(user, () => {
 </script>
 
 <template>
-<div>
-  <h2>Meine Mahlzeiten</h2>
+  <div class="container py-4">
+    <h2 class="mb-4">🥗 Meine Mahlzeiten</h2>
 
-  <form @submit.prevent="submitForm">
-    <h3>Neue Mahlzeit hinzufügen</h3>
-    <input v-model="newName" placeholder="Name" required />
-    <input v-model.number="newCarbs" type="number" placeholder="Kohlenhydrate (g)" />
-    <input v-model.number="newFat" type="number" placeholder="Fett (g)" />
-    <input v-model.number="newProteins" type="number" placeholder="Proteine (g)" />
-    <button type="submit">
-      {{editingMealId !== null ? "Aktualisieren" : "Speichern"}}
-    </button>
-    <button v-if="editingMealId !== null"
-            type="button"
-            @click="resetForm">
-      Abbrechen
-    </button>
-    <label>
-      <input type="checkbox"  v-model="showOnlyFavorites" />
-      Nur Favoriten anzeigen
-    </label>
-  </form>
+    <form @submit.prevent="submitForm" class="mb-4 p-3 border rounded bg-light">
+      <h3 class="mb-3">{{ editingMealId !== null ? "Mahlzeit bearbeiten" : "Neue Mahlzeit hinzufügen" }}</h3>
+      <div class="mb-2">
+        <input v-model="newName" placeholder="Name der Mahlzeit" required class="form-control" />
+      </div>
+      <div class="mb-2">
+        <input v-model.number="newCarbs" type="number" placeholder="Kohlenhydrate (g)" class="form-control" />
+      </div>
+      <div class="mb-2">
+        <input v-model.number="newFat" type="number" placeholder="Fett (g)" class="form-control" />
+      </div>
+      <div class="mb-2">
+        <input v-model.number="newProteins" type="number" placeholder="Proteine (g)" class="form-control" />
+      </div>
+      <button type="submit" class="btn btn-primary me-2">
+        {{ editingMealId !== null ? "Aktualisieren" : "Speichern" }}
+      </button>
+      <button v-if="editingMealId !== null" type="button" @click="resetForm" class="btn btn-secondary">
+        Abbrechen
+      </button>
+    </form>
 
-  <input v-model="searchText" placeholder="Suchen..." />
+    <div class="mb-3 d-flex gap-3 align-items-center">
+      <input v-model="searchText" placeholder="Mahlzeit suchen..." class="form-control w-auto" />
+      <label class="d-flex align-items-center gap-2">
+        <input type="checkbox" v-model="showOnlyFavorites" />
+        Nur Favoriten anzeigen
+      </label>
+    </div>
 
-  <p v-if="isLoading">Lade Mahlzeiten...</p>
-  <p v-else-if="errorMessage">{{ errorMessage }}</p>
-  <ul v-else>
-    <li v-for="meal in filteredMeals" :key="meal.id ?? meal.name">
-      <h3>{{ meal.name}}</h3>
-      <p>Kohlenhydrate: {{ meal.macro.countCarbs}} g</p>
-      <p>Fette: {{ meal.macro.countFat}} g</p>
-      <p>Proteine: {{ meal.macro.countProteins}} g</p>
-      <p>Kalorien: {{ calculateCalories(meal.macro) }} kcal</p>
-      <button @click="onDelete(meal)" >Löschen</button>
-      <button @click="onEdit(meal)" >Bearbeiten</button>
-      <button @click="onToggleFavorite(meal)" > {{ meal.favorite ? "⭐" : "☆" }}</button>
-    </li>
-  </ul>
-</div>
+    <p v-if="isLoading">Lade Mahlzeiten...</p>
+    <p v-else-if="errorMessage" class="text-danger">{{ errorMessage }}</p>
+    <ul v-else class="list-group mb-4">
+      <li v-for="meal in filteredMeals" :key="meal.id ?? meal.name" class="list-group-item">
+        <h5>{{ meal.name }}</h5>
+        <p class="mb-1">Kohlenhydrate: {{ meal.macro.countCarbs }} g</p>
+        <p class="mb-1">Fette: {{ meal.macro.countFat }} g</p>
+        <p class="mb-1">Proteine: {{ meal.macro.countProteins }} g</p>
+        <p class="mb-2"><strong>Kalorien: {{ calculateCalories(meal.macro) }} kcal</strong></p>
+        <button @click="onDelete(meal)" class="btn btn-danger btn-sm me-2">Löschen</button>
+        <button @click="onEdit(meal)" class="btn btn-warning btn-sm me-2">Bearbeiten</button>
+        <button @click="onToggleFavorite(meal)" class="btn btn-outline-warning btn-sm">
+          {{ meal.favorite ? "⭐ Favorit" : "☆ Favorit" }}
+        </button>
+      </li>
+    </ul>
+
+    <div class="p-3 border rounded bg-light mb-3">
+      <h3 class="mb-3">📊 Tagesübersicht</h3>
+      <p>Gesamtkalorien: <strong>{{ totalCalories }} kcal</strong></p>
+      <p>Kohlenhydrate gesamt: {{ totalMacros.countCarbs }} g</p>
+      <p>Fette gesamt: {{ totalMacros.countFat }} g</p>
+      <p>Proteine gesamt: {{ totalMacros.countProteins }} g</p>
+    </div>
+
+    <div class="p-3 border rounded bg-light">
+      <h3 class="mb-3">🎯 Tagesziel</h3>
+      <div class="mb-2">
+        <input v-model.number="dailyGoal" type="number" placeholder="Tagesziel in kcal" class="form-control w-auto" />
+      </div>
+      <p v-if="totalCalories <= dailyGoal" class="text-success">
+        ✅ Noch {{ dailyGoal - totalCalories }} kcal übrig
+      </p>
+      <p v-else class="text-danger">
+        ⚠️ Tagesziel um {{ totalCalories - dailyGoal }} kcal überschritten
+      </p>
+    </div>
+  </div>
 </template>
 
 <style scoped>
 form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  max-width: 300px;
+  max-width: 400px;
 }
 </style>
