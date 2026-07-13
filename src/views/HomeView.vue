@@ -8,7 +8,7 @@ import MealList from "@/components/MealList.vue"
 
 <template>
   <main>
-    <h1>NutriTrack</h1>
+    <h1></h1>
       <MealList />
   </main>
 </template>
